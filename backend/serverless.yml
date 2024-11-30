@@ -5,6 +5,9 @@ app: serverless-todo-app
 # "service" is the name of this project. This will also be added to your AWS resource names.
 service: serverless-todo-app
 
+plugins:
+  - serverless-iam-roles-per-function
+
 provider:
   name: aws
   runtime: nodejs20.x
@@ -16,32 +19,19 @@ provider:
       IMAGES_S3_BUCKET: todo-images-${self:provider.stage}
       SIGNED_URL_EXPIRATION: 300
 
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:Scan
-            - dynamodb:PutItem
-            - dynamodb:GetItem
-            - dynamodb:Query
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
-        - Effect: Allow
-          Action:
-            - s3:PutObject
-            - s3:GetObject
-          Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
 
 functions:
   
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
 
-  # TODO: Configure this function
   GetTodos:
     handler: src/lambda/http/getTodos.handler
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
     events:
       - http:
           method: get
@@ -49,9 +39,14 @@ functions:
           path: todos
           cors: true
 
-  # TODO: Configure this function
+
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
     events:
       - http:
           method: post
@@ -62,9 +57,14 @@ functions:
             schemas:
               application/json: ${file(models/create-todo-request.json)}
 
-  # TODO: Configure this function
+ 
   UpdateTodo:
     handler: src/lambda/http/updateTodo.handler
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:UpdateItem
+          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
     events:
       - http:
           method: patch
@@ -72,9 +72,14 @@ functions:
           path: todos/{todoId}
           cors: true
 
-  # TODO: Configure this function
+
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DeleteItem
+          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
     events:
       - http:
           method: delete
@@ -82,9 +87,19 @@ functions:
           path: todos/{todoId}
           cors: true
 
-  # TODO: Configure this function
+
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:UpdateItem
+          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
     events:
       - http:
           method: post
